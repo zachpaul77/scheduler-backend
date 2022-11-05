@@ -10,7 +10,7 @@ const app = express()
 
 // middleware
 app.use(express.json())
-app.use(cors({origin: true, credentials: true}))
+app.use(cors({origin: "*", credentials: true}))
 //"https://schedge.netlify.app"
 
 // routes
