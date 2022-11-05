@@ -1,4 +1,5 @@
 require('dotenv').config()
+const cors = require('cors')
 const express = require('express')
 const mongoose = require('mongoose')
 const roomRoutes = require('./routes/roomRoutes')
@@ -9,11 +10,7 @@ const app = express()
 
 // middleware
 app.use(express.json())
-app.use(function(req, res, next) {
-  res.header("Access-Control-Allow-Origin", "https://schedge.netlify.app")
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept")
-  next()
-})
+app.use(cors({origin: "https://schedge.netlify.app"}))
 
 // routes
 app.use('/api/room', roomRoutes)
