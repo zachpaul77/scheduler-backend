@@ -2,15 +2,15 @@ require('dotenv').config()
 const cors = require('cors')
 const express = require('express')
 const mongoose = require('mongoose')
-const roomRoutes = require('./routes/roomRoutes')
-const userRoutes = require('./routes/userRoutes')
-const joinRoomRoute = require('./routes/joinRoomRoute')
+const roomRoutes = require('../routes/roomRoutes')
+const userRoutes = require('../routes/userRoutes')
+const joinRoomRoute = require('../routes/joinRoomRoute')
 
 const app = express()
 
 // middleware
+app.use(cors())
 app.use(express.json())
-app.use(cors({origin: "*", credentials: true}))
 //"https://schedge.netlify.app"
 
 // routes
