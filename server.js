@@ -10,7 +10,7 @@ const app = express()
 
 // middleware
 app.use(express.json())
-app.use(cors({origin: "https://schedge.netlify.app"}))
+app.use(cors(/*{origin: "https://schedge.netlify.app"}*/))
 
 // routes
 app.use('/api/room', roomRoutes)
