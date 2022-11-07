@@ -249,31 +249,52 @@ room.updateMemberGroups = async(req, res) => {
 }
 
 // Update a member's profile picture
+room.getCloudinarySignature = async(req, res) => {
+  try {
+    const { id } = req.params
+    const room = await getRoomFromID(id, res)
+    if (!room) return
+
+    const { memberId } = req.body
+
+    const timestamp = new Date().getTime()
+    const signature = await cloudinary.utils.api_sign_request(
+      {
+        timestamp,
+        folder: `schedule/room/${id}`,
+        public_id: memberId,
+        transformation: 'w_30,h_30'
+      },
+      process.env.CLOUD_KEY_SECRET
+    )
+
+    return res.status(200).json({timestamp, signature})
+  }
+  catch (e) {
+    console.log(e.message)
+    return res.status(400).json({error: e.message})
+  }
+}
+
+// Update a member's profile picture
 room.updateMemberProfileImg = async(req, res) => {
   try {
     const { id } = req.params
     const room = await getRoomFromID(id, res)
     if (!room) return
 
-    const memberId = req.file.originalname
-    const result = await cloudinary.uploader.upload(req.file.path, {
-      folder: 'schedule/room/'+id,
-      public_id: memberId,
-      width: 30,
-      height: 30
-    })
-    fs.unlink(req.file.path, ()=>{})
+    const {memberId, imgURL} = req.body
 
     const memberList = await Room.where("_id").equals(id).select("members")
     const mIndex = memberList[0].members.findIndex(m => m._id.toString() === memberId)
-    memberList[0].members[mIndex].profile_img = result.url
-    await memberList[0].save()
+    memberList[0].members[mIndex].profile_img = imgURL
+    memberList[0].save()
 
-    res.status(200).json(result.url)
+    return res.status(200).json({success: 'successfully saved member profile img'})
   }
   catch (e) {
     console.log(e.message)
-    res.status(400).json({error: e.message})
+    return res.status(400).json({error: e.message})
   }
 }
 

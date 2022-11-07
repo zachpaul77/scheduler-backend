@@ -17,7 +17,7 @@ app.use(express.json())
 app.use('/api/room', roomRoutes)
 app.use('/api/user', userRoutes)
 app.use('/', joinRoomRoute)
-app.use('/images', express.static('images'))
+//app.use('/images', express.static('images'))
 
 // connect to db
 mongoose.connect(process.env.MONGO_URI)

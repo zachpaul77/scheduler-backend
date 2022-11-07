@@ -1,19 +1,8 @@
 const express = require('express')
 const room = require('./roomController')
-const multer = require("multer");
 //const requireAuth = require('../middleware/requireAuth')
 
 const router = express.Router()
-// Multer
-const storage = multer.diskStorage({
-    destination: function (req, file, cb) {
-      cb(null, `temp-data/`)
-    },
-    filename: function (req, file, cb) {
-      cb(null, file.originalname)
-    }
-  })
-const upload = multer({ storage: storage, limits: {fileSize: 5000000 /*5mb*/}})
 
 // require auth for all room routes
 //router.use(requireAuth)
@@ -36,8 +25,11 @@ router.post('/set_member_schedule/:id', room.setMemberSchedule)
 // Update member groups
 router.post('/update_member_groups/:id', room.updateMemberGroups)
 
+// Get cloudinary signature
+router.post('/get_cloudinary_signature/:id', room.getCloudinarySignature)
+
 // Update member profile image
-router.post('/update_member_img/:id', upload.single('image'), room.updateMemberProfileImg)
+router.post('/update_member_img/:id', room.updateMemberProfileImg)
 
 // Reset member's custom profile picture to default
 router.post('/clear_member_img/:id', room.clearMemberProfileImg)
