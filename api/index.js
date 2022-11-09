@@ -4,7 +4,6 @@ const express = require('express')
 const mongoose = require('mongoose')
 const roomRoutes = require('../routes/roomRoutes')
 const userRoutes = require('../routes/userRoutes')
-const joinRoomRoute = require('../routes/joinRoomRoute')
 
 const app = express()
 
@@ -16,8 +15,6 @@ app.use(express.json())
 // routes
 app.use('/api/room', roomRoutes)
 app.use('/api/user', userRoutes)
-app.use('/', joinRoomRoute)
-//app.use('/images', express.static('images'))
 
 // connect to db
 mongoose.connect(process.env.MONGO_URI)
