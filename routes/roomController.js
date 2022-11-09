@@ -31,12 +31,34 @@ const getAuthorizedUser = async(req, res) => {
     return false
 }
 
-const getRoomFromID = async(room_id, res) => {
-  if (mongoose.Types.ObjectId.isValid(room_id)) {
-    const room = await Room.findOne({_id: room_id})
-    if (room) {
-      return room
+const getMemberFromID = async(roomId, memberId, res) => {
+  try {
+    if (mongoose.Types.ObjectId.isValid(roomId)) {
+      const memberList = await Room.where("_id").equals(roomId).select("members")
+      const mIndex = memberList[0].members.findIndex(m => m._id.toString() === memberId)
+  
+      if (memberList) {
+        return {memberList, mIndex}
+      }
     }
+  } catch (e) {
+    console.log(e)
+  }
+
+  res.status(404).json({error: 'Room does not exist'})
+  return false
+}
+
+const getRoomFromID = async(room_id, res) => {
+  try {
+    if (mongoose.Types.ObjectId.isValid(room_id)) {
+      const room = await Room.findOne({_id: room_id})
+      if (room) {
+        return room
+      }
+    }
+  } catch (e) {
+    console.log(e)
   }
 
   res.status(404).json({error: 'Room does not exist'})
@@ -45,26 +67,32 @@ const getRoomFromID = async(room_id, res) => {
 
 // get all rooms
 room.getRooms = async(req, res) => {
+  try {
   const authorizedUser = await getAuthorizedUser(req, res)
   if (!authorizedUser) return
 
-  try {
     const owner_id = authorizedUser._id
     const rooms = await Room.find({owner_id}).sort({updatedAt: -1})
-    res.status(200).json(rooms);
+    res.status(200).json(rooms)
   } catch (e) {
-    res.status(400).json({error: e.message});
+    res.status(400).json({error: e.message})
   }
 }
 
 // Get a room from code
 room.getRoom = async(req, res) => {
-  const { room_id } = req.body
+  try {
+    const { room_id } = req.body
 
-  const room = await getRoomFromID(room_id, res)
-  if (room) {
-    res.status(200).json(room)
+    const room = await getRoomFromID(room_id, res)
+    if (room) {
+      res.status(200).json(room)
+    }
+  } catch (e) {
+    console.log(e)
+    res.status(400).json({error: e.message})
   }
+
 }
 
 // Create a room
@@ -83,7 +111,7 @@ room.createRoom = async(req, res) => {
     const rooms = await Room.find({owner_id})
     for (let room of rooms) {
       if (room.name === roomName) {
-        return res.status(400).json({error: "room name already exists"})
+        return res.status(400).json({error: "room already exists"})
       }
     }
 
@@ -160,13 +188,12 @@ room.deleteGroup = async(req, res) => {
     const { groupName } = req.body
 
     // delete group from members
-    const currentRoom = await Room.where("_id").equals(id)
-    currentRoom[0].members.map(m => {
+    room.members.map(m => {
       m.groups = m.groups.filter(group => group !== groupName)
     })
-    currentRoom[0].groups = currentRoom[0].groups.filter(group => group.name !== groupName)
+    room.groups = room.groups.filter(group => group.name !== groupName)
 
-    await currentRoom[0].save()
+    room.save()
     res.status(200).json({success: 'deleted group'})
   } catch (e) {
     console.log(e.message)
@@ -188,11 +215,9 @@ room.setSchedule = async(req, res) => {
     room.schedule = schedule
     if (removeMemberSchedules) {
       // Remove all member schedules
-      let membersList = await Room.where("_id").equals(id).select("members")
-      membersList[0].members.map((member) => {
+      room.members.map((member) => {
         member.time_slots = []
       })
-      await membersList[0].save()
     }
     await room.save()
     res.status(200).json(room.schedule)
@@ -206,21 +231,20 @@ room.setSchedule = async(req, res) => {
 room.setMemberSchedule = async(req, res) => {
   try {
     const { id } = req.params
-    const room = await getRoomFromID(id, res)
-    if (!room) return
     const { timeSlots } = req.body
+    const mongodb = await getMemberFromID(id, timeSlots.memberId, res)
+    if (!mongodb) return
 
-    let memberList = await Room.where("_id").equals(id).select("members")
-    const mIndex = memberList[0].members.findIndex(m => m._id.toString() === timeSlots.memberId)
-    let memberTimeSlots = memberList[0].members[mIndex].time_slots
+    let memberTimeSlots = mongodb.memberList[0].members[mongodb.mIndex].time_slots
 
     if (timeSlots.isSet) {
       memberTimeSlots.addToSet(...timeSlots.dateTimes)
     } else {
-      memberTimeSlots = memberTimeSlots.filter(slot => !timeSlots.dateTimes.includes(slot));
+      memberTimeSlots = memberTimeSlots.filter(slot => !timeSlots.dateTimes.includes(slot))
     }
-    memberList[0].members[mIndex].time_slots = memberTimeSlots
-    await memberList[0].save()
+    mongodb.memberList[0].members[mongodb.mIndex].time_slots = memberTimeSlots
+    
+    mongodb.memberList[0].save()
     res.status(200).json(memberTimeSlots)
   } catch (e) {
     console.log(e.message)
@@ -232,16 +256,14 @@ room.setMemberSchedule = async(req, res) => {
 room.updateMemberGroups = async(req, res) => {
   try {
     const { id } = req.params
-    const room = await getRoomFromID(id, res)
-    if (!room) return
     const {groups, memberId} = req.body
+    const mongodb = await getMemberFromID(id, memberId, res)
+    if (!mongodb) return
 
-    const memberList = await Room.where("_id").equals(id).select("members")
-    const mIndex = memberList[0].members.findIndex(m => m._id.toString() === memberId)
-    memberList[0].members[mIndex].groups = groups
-    
-    await memberList[0].save()
-    res.status(200).json(groups)
+    mongodb.memberList[0].members[mongodb.mIndex].groups = groups
+    mongodb.memberList[0].save()
+
+    res.status(200).json({success: 'successfully saved member groups'})
   } catch (e) {
     console.log(e.message)
     res.status(400).json({error: e.message})
@@ -268,11 +290,11 @@ room.getCloudinarySignature = async(req, res) => {
       process.env.CLOUD_KEY_SECRET
     )
 
-    return res.status(200).json({timestamp, signature})
+    res.status(200).json({timestamp, signature})
   }
   catch (e) {
     console.log(e.message)
-    return res.status(400).json({error: e.message})
+    res.status(400).json({error: e.message})
   }
 }
 
@@ -280,21 +302,18 @@ room.getCloudinarySignature = async(req, res) => {
 room.updateMemberProfileImg = async(req, res) => {
   try {
     const { id } = req.params
-    const room = await getRoomFromID(id, res)
-    if (!room) return
-
     const {memberId, imgURL} = req.body
+    const mongodb = await getMemberFromID(id, memberId, res)
+    if (!mongodb) return
 
-    const memberList = await Room.where("_id").equals(id).select("members")
-    const mIndex = memberList[0].members.findIndex(m => m._id.toString() === memberId)
-    memberList[0].members[mIndex].profile_img = imgURL
-    memberList[0].save()
+    mongodb.memberList[0].members[mongodb.mIndex].profile_img = imgURL
+    mongodb.memberList[0].save()
 
-    return res.status(200).json({success: 'successfully saved member profile img'})
+    res.status(200).json({success: 'successfully saved member profile img'})
   }
   catch (e) {
     console.log(e.message)
-    return res.status(400).json({error: e.message})
+    res.status(400).json({error: e.message})
   }
 }
 
@@ -302,14 +321,12 @@ room.updateMemberProfileImg = async(req, res) => {
 room.clearMemberProfileImg = async(req, res) => {
   try {
     const { id } = req.params
-    const room = await getRoomFromID(id, res)
-    if (!room) return
     const { newProfileImg, memberId } = req.body
+    const mongodb = await getMemberFromID(id, memberId, res)
+    if (!mongodb) return
 
-    const memberList = await Room.where("_id").equals(id).select("members")
-    const mIndex = memberList[0].members.findIndex(m => m._id.toString() === memberId)
-    memberList[0].members[mIndex].profile_img = newProfileImg
-    await memberList[0].save()
+    mongodb.memberList[0].members[mongodb.mIndex].profile_img = newProfileImg
+    mongodb.memberList[0].save()
 
     res.status(200).json({success: 'cleared member profile_img'})
   }
@@ -323,14 +340,12 @@ room.clearMemberProfileImg = async(req, res) => {
 room.deleteMember = async(req, res) => {
   try {
     const { id } = req.params
-    const room = await getRoomFromID(id, res)
-    if (!room) return
     const { memberId } = req.body
+    const mongodb = await getMemberFromID(id, memberId, res)
+    if (!mongodb) return
 
-    const memberList = await Room.where("_id").equals(id).select("members")
-    memberList[0].members = memberList[0].members.filter(member => member._id.toString() !== memberId)
-    await memberList[0].save()
-
+    mongodb.memberList[0].members = mongodb.memberList[0].members.filter(member => member._id.toString() !== memberId)
+    mongodb.memberList[0].save()
     cloudinary.uploader.destroy(`schedule/room/${id}/${memberId}`)
 
     res.status(200).json({success: 'deleted member'})
@@ -352,11 +367,11 @@ room.deleteRoom = async(req, res) => {
       if (room) {
         await cloudinary.api.delete_resources_by_prefix(`schedule/room/${id}`, {all: true})
         cloudinary.api.delete_folder(`schedule/room/${id}`)
-        return res.status(200).json(room)
+        return res.status(200).json({success: `successfully deleted ${room.name}`})
       }
     }
-    res.status(404).json({error: 'No such room'})
-    
+
+    res.status(404).json({error: 'No room found'})
   } catch (e) {
     console.log(e.message)
     res.status(404).json({error: 'Error deleting room'})
