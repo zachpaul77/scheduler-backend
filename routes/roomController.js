@@ -105,6 +105,9 @@ room.createRoom = async(req, res) => {
     if(!roomName) {
       return res.status(400).json({ error: 'Please fill in all the fields'})
     }
+    if (schedule.dates.length > 31) {
+      return res.status(400).json({error: "Error: Rooms have a max of 31 days"})
+    }
 
     // Check duplicate room names
     const owner_id = authorizedUser._id
@@ -210,8 +213,12 @@ room.setSchedule = async(req, res) => {
     const { schedule, removeMemberSchedules } = req.body
 
     if (schedule.times.begin > schedule.times.end) {
-      return res.status(400).json({error: "End time is before start time"})
+      return res.status(400).json({error: "Error: End time is before start time"})
     }
+    if (schedule.dates.length > 31) {
+      return res.status(400).json({error: "Error: Rooms have a max of 31 days"})
+    }
+
     room.schedule = schedule
     if (removeMemberSchedules) {
       // Remove all member schedules
